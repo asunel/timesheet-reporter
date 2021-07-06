@@ -59,14 +59,14 @@ def parseClientTimesheets(directory, hanaResult):
             clientDayHoursByName = parseSingleClientTimesheet(dataFrame)
             print('INFO: "%s" parsed successfully' % fileName)
 
-            comparisonResult = compareHanaWithClientDetails(hanaResult, clientDayHoursByName)
             leavesByName  = getLeavesByName(filePath)
+            comparisonResult = compareHanaWithClientDetails(hanaResult, clientDayHoursByName, leavesByName)
             
             filenameWithoutExtension = helper.getFileNameWithoutExtension(fileName)
             sheetName = filenameWithoutExtension[CTS_NAME_PREFIX_TO_REMOVE_LENGTH:]
             sheetName = sheetName[0:EXCEL_FILE_NAME_LENGTH_LIMIT]
 
-            wb = generateReport(wb, comparisonResult, leavesByName, sheetName)
+            wb = generateReport(wb, comparisonResult, sheetName)
             print('INFO: Report for "%s" generated successfully' % fileName)
         except Exception as e:
             failedFileCount += 1
@@ -126,7 +126,7 @@ def parseSingleClientTimesheet(dataFrame):
                 dayHoursByName.setdefault(name, []).append(dayHour)
     return dayHoursByName
 
-def compareHanaWithClientDetails(hanaResult, clientResult):
+def compareHanaWithClientDetails(hanaResult, clientResult, leavesByName):
     comparisonResult = []
     for person in hanaResult:
         clientResultForPerson = clientResult.get(person)
@@ -138,13 +138,16 @@ def compareHanaWithClientDetails(hanaResult, clientResult):
                 [(day2, hour2)] = dh2.items()
                 if day == day2:
                     if (hour != hour2) or (hour == 0 and hour2 == 0):       # either mismatch hours, or hours are empty in both timesheets
+                        hasPersonAnyLeaveInTheMonth = leavesByName.get(person)     # First check if name exists in the leave result
+                        isPersonOnLeave = YES if hasPersonAnyLeaveInTheMonth and int(day) in leavesByName[person] else NO
+
                         verifyData = {}
                         verifyData[NAME_REPORT_HEADER] = person
                         verifyData[DAY_REPORT_HEADER] = day
                         verifyData[HANA_HOURS_REPORT_HEADER] = hour
                         verifyData[CLIENT_HOURS_REPORT_HEADER] = hour2
+                        verifyData[LEAVE_REPORT_HEADER] = isPersonOnLeave
                         comparisonResult.append(verifyData)
-                        # print(person, day, hour, hour2)
                     break
     return comparisonResult
 
@@ -181,43 +184,16 @@ def getLeavesByName(clientTimesheetPath):
             break
     return leavesByName            
 
-def generateReport(wb, reportResult, leaveResult, sheetName) :
-    if DEFAULT_SHEET_NAME_OF_NEW_WORKBOOK in wb.sheetnames:
-        wb.remove(wb[DEFAULT_SHEET_NAME_OF_NEW_WORKBOOK])  # remove default sheet named "Sheet", if it exist
-    
-    wb.create_sheet(sheetName)
-    sheet = wb[sheetName]
+def generateReport(wb, reportResult, sheetName) :
+    helper.removeDefaultSheet(wb)
+    sheet = helper.createSheet(wb, sheetName)
+    headerColumns = [NAME_REPORT_HEADER, DAY_REPORT_HEADER,HANA_HOURS_REPORT_HEADER,
+                        CLIENT_HOURS_REPORT_HEADER, LEAVE_REPORT_HEADER]
 
-    row = 1
-    sheet.cell(row, 1).value = NAME_REPORT_HEADER
-    sheet.cell(row, 2).value = DAY_REPORT_HEADER
-    sheet.cell(row, 3).value = HANA_HOURS_REPORT_HEADER
-    sheet.cell(row, 4).value = CLIENT_HOURS_REPORT_HEADER
-    sheet.cell(row, 5).value = LEAVE_REPORT_HEADER
-
-    for i in range(1, 6):   # since there will be 5 columns in the report
-        sheet.cell(row, i).fill = helper.getFillColor(REPORT_HEADER_COLOR)    
-
-    for row in range(len(reportResult)):
-        col = 1
-        name = reportResult[row][NAME_REPORT_HEADER]
-        day = reportResult[row][DAY_REPORT_HEADER]
-
-        hasPersonAnyLeaveInTheMonth = leaveResult.get(name)     # First check if name exists in the leave result
-        isPersonOnLeave = YES if hasPersonAnyLeaveInTheMonth and int(day) in leaveResult[name] else NO
-
-        sheet.cell(row+2, col).value = name
-        sheet.cell(row+2, col+1).value = day
-        sheet.cell(row+2, col+2).value = reportResult[row][HANA_HOURS_REPORT_HEADER]
-        sheet.cell(row+2, col+3).value = reportResult[row][CLIENT_HOURS_REPORT_HEADER]
-        sheet.cell(row+2, col+4).value = isPersonOnLeave
-
-        for temp in range(col, col+5):
-            helper.centerAlignCellData(sheet.cell(row+2, temp))
-
-    helper.adjustCellWidthToContent(sheet, EXTRA_CELL_WIDTH) # add 4 as some extra width becoz otherwise the width does not fit the content correctly
+    helper.renderDataInSheet(sheet, reportResult, headerColumns, REPORT_HEADER_COLOR)
+    helper.adjustCellWidthToContent(sheet, EXTRA_CELL_WIDTH) # add EXTRA_CELL_WIDTH becoz otherwise the width does not fit the content correctly
     helper.hideGridLines(sheet)
-
+    helper.applyFilter(sheet)
     return wb
 
 if __name__ == '__main__':

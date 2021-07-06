@@ -54,3 +54,29 @@ def getCellColor(cell):
 
 def getFillColor(color):
     return PatternFill(start_color = color, end_color = color, fill_type = 'solid')    
+
+def createHeader(sheet, headerColumns, headerColor):
+    headerRowNum = 1
+    for i in range(1, len(headerColumns) + 1):
+        sheet.cell(headerRowNum, i).value = headerColumns[i-1]
+        sheet.cell(headerRowNum, i).fill = getFillColor(headerColor) 
+
+def renderDataInSheet(sheet, data, headerColumns, headerColor):
+    createHeader(sheet, headerColumns, headerColor)
+    for row in range(len(data)):
+        for col in range(1, len(headerColumns) + 1):
+            cell = sheet.cell(row+2, col)
+            cell.value = data[row][headerColumns[col-1]]
+            centerAlignCellData(cell)
+
+def removeDefaultSheet(wb):
+    defaultSheet = "Sheet"
+    if defaultSheet in wb.sheetnames:
+        wb.remove(wb[defaultSheet])
+
+def createSheet(wb, sheetName):
+    wb.create_sheet(sheetName)
+    return wb[sheetName]
+
+def applyFilter(ws):
+    ws.auto_filter.ref = ws.dimensions
