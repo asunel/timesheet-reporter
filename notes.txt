@@ -1,0 +1,11 @@
+Installations for using excel funcionality
+------------------------------------------------------
+> Open cmd
+pip install wheel
+pip install pandas
+pip install xlrd        (latest version supports only xls files, not xlsx due to security issues. Use openpyxl instead.)
+pip install openpyxl
+----------------------------
+pip install styleframe
+---------------------------
+python -m compileall reporter.py        # to compile the code and distribute the .pyc file generated
