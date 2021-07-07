@@ -1,9 +1,8 @@
 import openpyxl
-from openpyxl.styles import Color, PatternFill, Font, Border
+from openpyxl.styles import PatternFill
 from datetime import datetime, timedelta
 import calendar
 import os
-from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 
 def adjustCellWidthToContent(ws, extraWidth):
